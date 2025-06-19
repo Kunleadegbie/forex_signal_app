@@ -35,9 +35,9 @@ def fetch_forex_data():
 
         # Create DataFrame from values
         df = pd.DataFrame(data["values"])
-        df["close"] = df["close"].astype(float)  # Convert close to numeric
+        df["close"] = df["close"].astype(float)
         df["datetime"] = pd.to_datetime(df["datetime"])
-        df = df.sort_values("datetime")  # Oldest to newest
+        df = df.sort_values("datetime")
 
         return df
 
@@ -70,7 +70,14 @@ def analyze_signals(data, indicators):
     lower_band = indicators["Bollinger Low"].iloc[-1]
     signals.append("Price below Bollinger Bands: BUY" if latest_close < lower_band else "Price above Bollinger Bands: SELL" if latest_close > upper_band else "Price within Bollinger Bands")
 
-    trade_decision = "BUY" if any("BUY" in s for s in signals) else "SELL" if any("SELL" in s for s in signals) else "HOLD"
+    # Determine overall recommendation
+    if any("BUY" in s for s in signals):
+        trade_decision = "BUY"
+    elif any("SELL" in s for s in signals):
+        trade_decision = "SELL"
+    else:
+        trade_decision = "HOLD"
+
     return signals, trade_decision
 
 def send_email(subject, body, recipient=EMAIL_SUBSCRIBER):
@@ -91,7 +98,7 @@ def send_email(subject, body, recipient=EMAIL_SUBSCRIBER):
         st.error(f"Failed to send email: {e}")
 
 def main():
-    st.title("📊 Forex Trading Signals - EUR/USD")
+    st.title("📊 Forex Trading Signals - EUR/USD (via Twelve Data API)")
     st.sidebar.header("Trading Options")
 
     st.write("""
@@ -104,7 +111,7 @@ def main():
     st.subheader("📈 Live Forex Data (EUR/USD)")
     data = fetch_forex_data()
     if data is not None:
-        st.dataframe(data[["datetime", "close"]].tail(num_points))  # clean, tabular display
+        st.dataframe(data[["datetime", "close"]].tail(num_points))
 
         indicators = calculate_indicators(data)
         signals, trade_decision = analyze_signals(data, indicators)
@@ -117,14 +124,30 @@ def main():
         st.write(f"**{trade_decision}**")
 
         latest_close = data["close"].iloc[-1]
-        take_profit = latest_close * 0.99
-        stop_loss = latest_close * 1.01
+
+        # Set risk management levels based on trade decision
+        if trade_decision == "BUY":
+            take_profit = latest_close * 1.01
+            stop_loss = latest_close * 0.99
+        elif trade_decision == "SELL":
+            take_profit = latest_close * 0.99
+            stop_loss = latest_close * 1.01
+        else:  # HOLD or unknown
+            take_profit = latest_close
+            stop_loss = latest_close
+
         st.subheader("🎯 Risk Management")
         st.write(f"Stop Loss: {stop_loss:.6f}")
         st.write(f"Take Profit: {take_profit:.6f}")
 
         email_subject = f"Forex Trade Alert - {trade_decision}"
-        email_body = f"Trade Signal: {trade_decision}\nLatest Price: {latest_close}\nTP: {take_profit:.6f}\nSL: {stop_loss:.6f}\n\nSignals:\n" + "\n".join(signals)
+        email_body = (
+            f"Trade Signal: {trade_decision}\n"
+            f"Latest Price: {latest_close}\n"
+            f"Take Profit: {take_profit:.6f}\n"
+            f"Stop Loss: {stop_loss:.6f}\n\n"
+            f"Signals:\n" + "\n".join(signals)
+        )
         send_email(email_subject, email_body)
 
     else:
