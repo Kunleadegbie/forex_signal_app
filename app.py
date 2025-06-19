@@ -27,16 +27,18 @@ def fetch_forex_data():
     try:
         response = requests.get(API_URL)
         data = response.json()
-        st.write(data)  # for debugging
 
-        rates = data.get("rates", {})
-        eur_usd = rates.get("USD")
-
-        if eur_usd is None:
-            st.error("Unable to fetch EUR/USD rates.")
+        # Check for API errors
+        if "values" not in data:
+            st.error(f"API Error: {data.get('message', 'No values found.')}")
             return None
 
-        df = pd.DataFrame({"close": [eur_usd] * 100})
+        # Create DataFrame from values
+        df = pd.DataFrame(data["values"])
+        df["close"] = df["close"].astype(float)  # Convert close to numeric
+        df["datetime"] = pd.to_datetime(df["datetime"])
+        df = df.sort_values("datetime")  # Oldest to newest
+
         return df
 
     except Exception as e:
@@ -94,36 +96,39 @@ def main():
 
     st.write("""
     Live forex trading signals for EUR/USD using RSI, MACD, Bollinger Bands, SMA, and EMA.
+    Powered by **Twelve Data API**.
     """)
 
-    num_points = st.sidebar.slider("Number of Historical Points", 10, 200, 100)
+    num_points = st.sidebar.slider("Number of Data Points to Display", 10, 200, 100)
 
-    st.subheader("Live Forex Data")
+    st.subheader("📈 Live Forex Data (EUR/USD)")
     data = fetch_forex_data()
     if data is not None:
-        st.write(data.head(num_points))
+        st.dataframe(data[["datetime", "close"]].tail(num_points))  # clean, tabular display
+
         indicators = calculate_indicators(data)
         signals, trade_decision = analyze_signals(data, indicators)
 
-        st.subheader("Trading Signals")
+        st.subheader("📌 Trading Signals")
         for signal in signals:
             st.write(f"- {signal}")
 
-        st.subheader("Trade Recommendation")
+        st.subheader("💡 Trade Recommendation")
         st.write(f"**{trade_decision}**")
 
         latest_close = data["close"].iloc[-1]
         take_profit = latest_close * 0.99
         stop_loss = latest_close * 1.01
-        st.subheader("Risk Management")
+        st.subheader("🎯 Risk Management")
         st.write(f"Stop Loss: {stop_loss:.6f}")
         st.write(f"Take Profit: {take_profit:.6f}")
 
         email_subject = f"Forex Trade Alert - {trade_decision}"
         email_body = f"Trade Signal: {trade_decision}\nLatest Price: {latest_close}\nTP: {take_profit:.6f}\nSL: {stop_loss:.6f}\n\nSignals:\n" + "\n".join(signals)
         send_email(email_subject, email_body)
+
     else:
-        st.write("No data available.")
+        st.write("No data available at the moment.")
 
 if __name__ == "__main__":
     main()
