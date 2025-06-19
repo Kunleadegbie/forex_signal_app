@@ -98,7 +98,7 @@ def send_email(subject, body, recipient=EMAIL_SUBSCRIBER):
         st.error(f"Failed to send email: {e}")
 
 def main():
-    st.title("📊 Forex Trading Signals - EUR/USD (via Twelve Data API)")
+    st.title("📊 Forex Trading Signals - EUR/USD ")
     st.sidebar.header("Trading Options")
 
     st.write("""
