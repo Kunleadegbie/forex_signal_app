@@ -18,7 +18,7 @@ EMAIL_PASSWORD = st.secrets["EMAIL_PASSWORD"]
 EMAIL_SUBSCRIBER = st.secrets["EMAIL_SUBSCRIBER"]
 
 # Constants
-API_URL = f"https://api.exchangerate.host/latest?base=EUR&access_key={API_KEY}"
+API_URL = f"https://api.twelvedata.com/time_series?symbol=EUR/USD&interval=1min&apikey={API_KEY}"
 CURRENCY_PAIR = "EUR/USD"
 SMTP_SERVER = "smtp.gmail.com"
 SMTP_PORT = 587
